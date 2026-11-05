@@ -79,11 +79,12 @@ Identifies devices with the correct version of DRC INSIGHT installed.
 
 | Criteria | Operator | Value |
 |---|---|---|
-| Application Title | Has | `DRC INSIGHT.app` |
-| Extension Attribute | DRC INSIGHT | Is | `17.0.0` |
-| Computer Group | Member of | `STUDENTS` |
+| Application Title | Has | DRC INSIGHT.app |
+| Extension Attribute | DRC INSIGHT | Is | 17.0.0 |
+| Computer Group | Member of | STUDENTS |
 
 > Update the Extension Attribute version criteria whenever a new DRC INSIGHT release is deployed.
+> Set Computer Group - Member of to whatever group you want to deploy to.
 
 ### DRC INSIGHT - Old or Missing
 
@@ -101,4 +102,4 @@ The Smart Group should include devices meeting either of the following condition
 
 **Condition 2 – Application Outdated**
 - Computer Group → Not a Member of → `DRC INSIGHT - Current`
-- AND Computer Group → Member of → `ST
+- AND Computer Group → Member of → `STUDENTS`
