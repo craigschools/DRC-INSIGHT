@@ -84,7 +84,7 @@ Identifies devices with the correct version of DRC INSIGHT installed.
 | Computer Group | Member of | STUDENTS |
 
 > Update the Extension Attribute version criteria whenever a new DRC INSIGHT release is deployed.
-> Set Computer Group - Member of to whatever group you want to deploy to.
+|> Set Computer Group - Member of to whatever group you want to deploy to.
 
 ### DRC INSIGHT - Old or Missing
 
