@@ -57,12 +57,24 @@ fi
 
 echo "Configuration found: $CONFIG"
 
-# Pass values to macOS JavaScript for JSON processing
+# Back up original configuration
+BACKUP="${CONFIG}.backup.$(/bin/date +%Y%m%d%H%M%S)"
+
+if ! /bin/cp -p "$CONFIG" "$BACKUP"; then
+    echo "ERROR: Could not back up original configuration."
+    exit 1
+fi
+
+echo "Original configuration backed up: $BACKUP"
+
+# Pass values to JavaScript for JSON processing
 export DRC_CONFIG_PATH="$CONFIG"
 export DRC_OU_ID="$OU_ID"
 export DRC_HTTPS_PROXY="$HTTPS_PROXY"
 
-# Update and verify JSON
+echo ""
+echo "Updating configuration while preserving DRC structure..."
+
 if /usr/bin/osascript -l JavaScript <<'JXA'
 ObjC.import('Foundation');
 
@@ -76,7 +88,7 @@ if (!path || !ouID) {
     throw new Error("Configuration path or OU ID is missing.");
 }
 
-// Read existing JSON
+// Read original configuration
 var contents = $.NSString.stringWithContentsOfFileEncodingError(
     path,
     $.NSUTF8StringEncoding,
@@ -84,33 +96,53 @@ var contents = $.NSString.stringWithContentsOfFileEncodingError(
 );
 
 if (!contents) {
-    throw new Error("Could not read configuration file.");
+    throw new Error("Could not read original configuration.");
 }
 
-// Parse JSON
-var config = JSON.parse(ObjC.unwrap(contents));
+// Parse original JSON
+var original = JSON.parse(ObjC.unwrap(contents));
 
-if (typeof config !== 'object' ||
-    config === null ||
-    Array.isArray(config)) {
+if (typeof original !== 'object' ||
+    original === null ||
+    Array.isArray(original)) {
     throw new Error("Configuration root must be a JSON object.");
 }
 
-// Update OU ID
-config.ouIds = [ouID];
-
-// Ensure config object exists
-if (typeof config.config !== 'object' ||
-    config.config === null ||
-    Array.isArray(config.config)) {
-    config.config = {};
+// Verify required DRC properties exist
+if (typeof original.toolkitUrl !== 'string' ||
+    original.toolkitUrl.length === 0) {
+    throw new Error("Original toolkitUrl is missing or invalid.");
 }
 
-// Update HTTPS proxy
-config.config.httpsProxy = proxy || "";
+if (typeof original.config !== 'object' ||
+    original.config === null ||
+    Array.isArray(original.config)) {
+    throw new Error("Original config object is missing or invalid.");
+}
 
-// Serialize JSON
-var output = JSON.stringify(config, null, 2) + "\n";
+// Preserve the original toolkit URL
+var originalToolkitURL = original.toolkitUrl;
+
+// Update only the requested settings
+original.ouIds = [ouID];
+original.config.httpsProxy = proxy || "";
+
+// Rebuild top-level JSON in DRC's known working order
+var ordered = {};
+
+ordered.config = original.config;
+ordered.ouIds = original.ouIds;
+ordered.toolkitUrl = original.toolkitUrl;
+
+// Preserve any additional top-level properties
+Object.keys(original).forEach(function(key) {
+    if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+        ordered[key] = original[key];
+    }
+});
+
+// Serialize with four-space indentation
+var output = JSON.stringify(ordered, null, 4) + "\n";
 
 // Write atomically
 var writeResult = $.NSString.stringWithString(output)
@@ -125,7 +157,7 @@ if (!writeResult) {
     throw new Error("Failed to write configuration.");
 }
 
-// Read back for verification
+// Read the written file back
 var verifyContents = $.NSString.stringWithContentsOfFileEncodingError(
     path,
     $.NSUTF8StringEncoding,
@@ -136,32 +168,57 @@ if (!verifyContents) {
     throw new Error("Could not read configuration after writing.");
 }
 
-var verifiedConfig = JSON.parse(ObjC.unwrap(verifyContents));
+// Parse written JSON
+var verified = JSON.parse(ObjC.unwrap(verifyContents));
 
 // Verify OU ID
-if (!Array.isArray(verifiedConfig.ouIds) ||
-    verifiedConfig.ouIds.length !== 1 ||
-    verifiedConfig.ouIds[0] !== ouID) {
+if (!Array.isArray(verified.ouIds) ||
+    verified.ouIds.length !== 1 ||
+    verified.ouIds[0] !== ouID) {
     throw new Error("OU ID verification failed.");
 }
 
 // Verify proxy
-if (!verifiedConfig.config ||
-    verifiedConfig.config.httpsProxy !== (proxy || "")) {
+if (!verified.config ||
+    verified.config.httpsProxy !== (proxy || "")) {
     throw new Error("HTTPS proxy verification failed.");
 }
 
+// Verify toolkit URL was preserved
+if (verified.toolkitUrl !== originalToolkitURL) {
+    throw new Error("Toolkit URL changed unexpectedly.");
+}
+
+// Verify property order
+var keys = Object.keys(verified);
+
+if (keys[0] !== "config" ||
+    keys[1] !== "ouIds" ||
+    keys[2] !== "toolkitUrl") {
+    throw new Error("Configuration property order verification failed.");
+}
+
+// Verify indentation and serialized output
+var expectedOutput = JSON.stringify(verified, null, 4) + "\n";
+
+if (ObjC.unwrap(verifyContents) !== expectedOutput) {
+    throw new Error("Configuration formatting verification failed.");
+}
+
 console.log("JSON successfully updated and verified.");
-console.log("Verified OU ID: " + verifiedConfig.ouIds[0]);
+console.log("OU ID: " + verified.ouIds[0]);
 console.log("HTTPS proxy: " + (proxy ? "Configured" : "Not configured"));
-console.log("Toolkit URL preserved: " + verifiedConfig.toolkitUrl);
+console.log("Toolkit URL preserved: " + verified.toolkitUrl);
+console.log("Property order: config, ouIds, toolkitUrl");
+console.log("Formatting: 4-space indentation");
 
 JXA
 
 then
     echo "SUCCESS: DRC configuration updated and verified."
 else
-    echo "ERROR: JSON configuration update or verification failed."
+    echo "ERROR: Configuration update or verification failed."
+    echo "Original configuration backup: $BACKUP"
     exit 1
 fi
 
