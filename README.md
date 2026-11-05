@@ -1,55 +1,104 @@
-# DRC-INSIGHT
--Scripts and what not pertaining to DRC INSIGHT for state testing.
+# DRC INSIGHT – JAMF Deployment
 
--A policy is created, in my case in JAMF Pro to run 2 scripts one installer, scoped to a smart group that utilizes an Extension Attribute for app version tracking.
+Scripts, configuration, and deployment documentation for managing **DRC INSIGHT** on macOS devices using JAMF Pro.
 
--Policy - Install DRC INSIGHT v17.0.0
+## Overview
 
--Packages:
--Latest DRC Insight installer package.
+This deployment method uses a JAMF Pro policy to install and configure DRC INSIGHT. The policy runs two scripts (preinstall and postinstall) and is scoped using Smart Groups that leverage an Extension Attribute to track the installed application version.
 
--Scripts:
+The goal is to automatically install, update, and configure DRC INSIGHT while minimizing unnecessary reinstalls.
 
--Preinstall.sh - Set to Run Before
+## JAMF Pro Configuration
 
--Removes previous and current versions of DRC INSIGHT if they exist, otherwise skipping.
-  -"/Applications/DRC INSIGHT"
-  -"/Applications/DRC INSIGHT Online Assessments"
-  -"/Applications/DRC INSIGHT.app"
--Removes support files if they exist, otherwise skipping.
-  -"/Library/Application Support/com.datarecognitioncorp.drcinsight.mac"
+### Policy: Install DRC INSIGHT v17.0.0
 
--Postinstall.sh - Set to Run After
+The policy should include the following:
 
--Verifies the existence of the JSON configuration file created by the installer then writes the OU ID and or Proxy URL values given in Parameters provided in the policy. If no values are given it skips and exits.
--$4 = OU ID
--$5 = Proxy URL
+**Packages**
+- Latest DRC INSIGHT installer package.
 
+**Scripts**
 
--Scoping:
+| Script | Execution Frequency |
+|---|---|
+| `Preinstall.sh` | Before |
+| `Postinstall.sh` | After |
 
--I have 2 Smart Groups for DRC, I scope this policy to "DRC INSIGHT - Old or Missing"
+**Scope**
 
--DRC INSIGHT - Current
-  -Criteria
-    - Application Title - Has - DRC INSIGHT.app
-    -AND - Extension Attribute - DRC INSIGHT - Is - 17.0.0 (Adjusted as new version are released, and uploaded to JAMF)
-    -AND - Computer Group - Member of - STUDENTS (Or whatever group(s) you want to deploy to.
-    
--DRC INSIGHT - Old or Missing
-  -Criteria
-    - Application Title - Does Not Have - DRC INSIGHT.app
-    -AND - Computer Group - Member of - STUDENTS (Or whatever group(s) you want to deploy to.
-    -OR - Computer Group - Not A Member of - DRC INSIGHT - Current 
-    -AND - Computer Group - Member of - STUDENTS (Or whatever group(s) you want to deploy to.
+- Smart Group: `DRC INSIGHT - Old or Missing`
 
--New Version Release Checklist
--Update scripts based on info in DRC INSIGHT documentation
--Download new installer package
--Upload new installer package to JAMF
--Update policy to utilize the new installer package
--Modify DRC INSIGHT - Current Smart Group to latest version number
--Go to DRC INSIGHT Install policy logs and flush the log for a test machine and observe behavior
-  -If all is well, flush all logs and let the policy run on all of them, check dashboard for completion.
-  -If errors occur, reevaluate scripts, installers etc and repeat on a test machine until it works correctly.
-	
+---
+
+## Scripts
+
+### 1. Preinstall.sh
+
+**Execution:** Before
+
+Removes existing versions of DRC INSIGHT and associated support files before installing the latest version.
+
+The script checks for the existence of each item and skips removal if it does not exist.
+
+**Application directories:**
+
+- `/Applications/DRC INSIGHT`
+- `/Applications/DRC INSIGHT Online Assessments`
+- `/Applications/DRC INSIGHT.app`
+
+**Support directories:**
+
+- `/Library/Application Support/com.datarecognitioncorp.drcinsight.mac`
+
+### 2. Postinstall.sh
+
+**Execution:** After
+
+Verifies the existence of the JSON configuration file created by the installer, then writes the appropriate configuration values using parameters supplied by the JAMF policy.
+
+If no values are provided, the script skips configuration and exits.
+
+**JAMF Script Parameters:**
+
+| Parameter | Value | Description |
+|---|---|---|
+| `$4` | OU ID | DRC INSIGHT organization/unit identifier |
+| `$5` | Proxy URL | Proxy server URL, if applicable |
+
+---
+
+## Smart Groups & Scoping
+
+Two Smart Groups are used to determine which devices need DRC INSIGHT installed or updated.
+
+### DRC INSIGHT - Current
+
+Identifies devices with the correct version of DRC INSIGHT installed.
+
+**Criteria:**
+
+| Criteria | Operator | Value |
+|---|---|---|
+| Application Title | Has | `DRC INSIGHT.app` |
+| Extension Attribute | DRC INSIGHT | Is | `17.0.0` |
+| Computer Group | Member of | `STUDENTS` |
+
+> Update the Extension Attribute version criteria whenever a new DRC INSIGHT release is deployed.
+
+### DRC INSIGHT - Old or Missing
+
+Identifies devices that either do not have DRC INSIGHT installed or are running an outdated version.
+
+**Criteria:**
+
+The Smart Group should include devices meeting either of the following conditions:
+
+**Condition 1 – Application Missing**
+- Application Title → Does Not Have → `DRC INSIGHT.app`
+- AND Computer Group → Member of → `STUDENTS`
+
+**OR**
+
+**Condition 2 – Application Outdated**
+- Computer Group → Not a Member of → `DRC INSIGHT - Current`
+- AND Computer Group → Member of → `ST
