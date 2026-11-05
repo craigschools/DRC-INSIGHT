@@ -9,14 +9,14 @@ Updated deployment configuration to accommodate changes in the DRC INSIGHT macOS
 The application is now identified at:
 
 ```text
-/Applications/DRC INSIGHT.app
+/Applications/DRC Insight.app
 ```
 
 Previous application locations that may exist on devices from earlier deployments include:
 
 ```text
-/Applications/DRC INSIGHT
-/Applications/DRC INSIGHT Online Assessments
+/Applications/DRC INSIGHT/
+/Applications/DRC INSIGHT Online Assessments/
 ```
 
 #### Support File Location
@@ -27,7 +27,7 @@ The current DRC INSIGHT support directory is:
 /Library/Application Support/com.datarecognitioncorp.drcinsight.mac
 ```
 
-The preinstall script now removes this directory along with the application directories to ensure a clean installation.
+The preinstall script now removes this directory along with the application directories and thier contents to ensure a clean installation.
 
 #### Info.plist Version Key Change
 
