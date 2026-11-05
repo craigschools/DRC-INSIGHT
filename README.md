@@ -1,7 +1,7 @@
 # DRC-INSIGHT
 Scripts and what not pertaining to DRC INSIGHT for state testing.
 
-A policy is created, in my case in JAMF Pro to run 2 scripts one installer and one Extension Attribute script, scoped to a smart group.
+A policy is created, in my case in JAMF Pro to run 2 scripts one installer, scoped to a smart group that utilizes an Extension Attribute for app version tracking.
 
 Policy - Install DRC INSIGHT v17.0.0
 
