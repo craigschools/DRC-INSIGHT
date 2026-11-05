@@ -50,10 +50,16 @@ The JAMF Extension Attribute must use `CFBundleShortVersionString` when retrievi
 **Updated version detection:**
 
 ```bash
+NOT_INSTALLED="Not Installed"
+RESULT=""
+
 if [ -a /Applications/DRC\ Insight.app/Contents/Info.plist ]
-then
-    RESULT=$(/usr/bin/defaults read /Applications/DRC\ Insight.app/Contents/Info.plist CFBundleShortVersionString)
+  then
+    RESULT=$( /usr/bin/defaults read /Applications/DRC\ Insight.app/Contents/Info.plist CFBundleShortVersionString )
+else
+    RESULT="$NOT_INSTALLED"
 fi
+/bin/echo "<result>$RESULT</result>"
 ```
 
 #### JAMF Pro Changes Required
