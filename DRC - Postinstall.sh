@@ -5,10 +5,14 @@ LOG="/var/log/drc-insight-configuration.log"
 CONFIG="/Library/Application Support/com.datarecognitioncorp.drcinsight.mac/DRCConfiguration.json"
 APP="/Applications/DRC INSIGHT.app"
 
+# JAMF Parameters
 OU_ID="$4"
 HTTPS_PROXY="$5"
 
-exec > >( /usr/bin/tee -a "$LOG" ) 2>&1
+# DRC INSIGHT v17 toolkit URL
+TOOLKIT_URL="https://cdn-app-prod.drcedirect.com/all/eca-device-toolkit-loader-ui/"
+
+exec > >(/usr/bin/tee -a "$LOG") 2>&1
 
 echo ""
 echo "=========================================="
@@ -71,9 +75,10 @@ echo "Original configuration backed up: $BACKUP"
 export DRC_CONFIG_PATH="$CONFIG"
 export DRC_OU_ID="$OU_ID"
 export DRC_HTTPS_PROXY="$HTTPS_PROXY"
+export DRC_TOOLKIT_URL="$TOOLKIT_URL"
 
 echo ""
-echo "Updating configuration while preserving DRC structure..."
+echo "Updating DRC INSIGHT configuration..."
 
 if /usr/bin/osascript -l JavaScript <<'JXA'
 ObjC.import('Foundation');
@@ -83,9 +88,10 @@ var env = $.NSProcessInfo.processInfo.environment;
 var path = ObjC.unwrap(env.objectForKey('DRC_CONFIG_PATH'));
 var ouID = ObjC.unwrap(env.objectForKey('DRC_OU_ID'));
 var proxy = ObjC.unwrap(env.objectForKey('DRC_HTTPS_PROXY'));
+var toolkitURL = ObjC.unwrap(env.objectForKey('DRC_TOOLKIT_URL'));
 
-if (!path || !ouID) {
-    throw new Error("Configuration path or OU ID is missing.");
+if (!path || !ouID || !toolkitURL) {
+    throw new Error("Required configuration values are missing.");
 }
 
 // Read original configuration
@@ -108,26 +114,19 @@ if (typeof original !== 'object' ||
     throw new Error("Configuration root must be a JSON object.");
 }
 
-// Verify required DRC properties exist
-if (typeof original.toolkitUrl !== 'string' ||
-    original.toolkitUrl.length === 0) {
-    throw new Error("Original toolkitUrl is missing or invalid.");
-}
-
+// Ensure config object exists
 if (typeof original.config !== 'object' ||
     original.config === null ||
     Array.isArray(original.config)) {
-    throw new Error("Original config object is missing or invalid.");
+    original.config = {};
 }
 
-// Preserve the original toolkit URL
-var originalToolkitURL = original.toolkitUrl;
-
-// Update only the requested settings
+// Explicitly configure all three settings
 original.ouIds = [ouID];
 original.config.httpsProxy = proxy || "";
+original.toolkitUrl = toolkitURL;
 
-// Rebuild top-level JSON in DRC's known working order
+// Rebuild top-level JSON in known DRC configuration order
 var ordered = {};
 
 ordered.config = original.config;
@@ -184,9 +183,9 @@ if (!verified.config ||
     throw new Error("HTTPS proxy verification failed.");
 }
 
-// Verify toolkit URL was preserved
-if (verified.toolkitUrl !== originalToolkitURL) {
-    throw new Error("Toolkit URL changed unexpectedly.");
+// Verify toolkit URL
+if (verified.toolkitUrl !== toolkitURL) {
+    throw new Error("Toolkit URL verification failed.");
 }
 
 // Verify property order
@@ -198,7 +197,7 @@ if (keys[0] !== "config" ||
     throw new Error("Configuration property order verification failed.");
 }
 
-// Verify indentation and serialized output
+// Verify formatting
 var expectedOutput = JSON.stringify(verified, null, 4) + "\n";
 
 if (ObjC.unwrap(verifyContents) !== expectedOutput) {
@@ -208,7 +207,7 @@ if (ObjC.unwrap(verifyContents) !== expectedOutput) {
 console.log("JSON successfully updated and verified.");
 console.log("OU ID: " + verified.ouIds[0]);
 console.log("HTTPS proxy: " + (proxy ? "Configured" : "Not configured"));
-console.log("Toolkit URL preserved: " + verified.toolkitUrl);
+console.log("Toolkit URL: " + verified.toolkitUrl);
 console.log("Property order: config, ouIds, toolkitUrl");
 console.log("Formatting: 4-space indentation");
 
